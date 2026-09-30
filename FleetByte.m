@@ -194,9 +194,18 @@ while(idx<=secs)               %% Main simulation loop
 
  position_history(end+1, :) = MPS;
  xyz=[MPS(1) MPS(2) MPS(3)+5] % Replace with your computation of position, the map is 512x512 pixels in size
- printf("displaying last 20 HRS\n");
- disp(HRS(end - 99: end));
- hr=acosd(mean(HRS(end - 119: end)));                  % Replace with your computation of heart rate
+
+ % ---------------- hr computation
+ HRS = HRS - mean(HRS)
+ Y = fft(HRS);
+ [freq_amplitude, max_freq] = max(abs(Y));
+ % 1200 samples, 120 s
+ % thus, each index is 120/1200 = 0.1 Hz
+ % thus, if index is k, frequency is 0.1 * k
+ max_freq = (max_freq - 1) * 0.1;
+
+ % to convert cycles/second to cycles / minute
+ hr = max_freq * 60;
 
  % ---------------- di computation
  di = [0 1]
