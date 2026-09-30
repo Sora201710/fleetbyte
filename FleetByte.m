@@ -194,7 +194,9 @@ while(idx<=secs)               %% Main simulation loop
 
  position_history(end+1, :) = MPS;
  xyz=[MPS(1) MPS(2) MPS(3)+5] % Replace with your computation of position, the map is 512x512 pixels in size
- hr=acosd(mean(HRS));                  % Replace with your computation of heart rate
+ printf("displaying last 20 HRS\n");
+ disp(HRS(end - 99: end));
+ hr=acosd(mean(HRS(end - 119: end)));                  % Replace with your computation of heart rate
 
  % ---------------- di computation
  di = [0 1]
@@ -218,7 +220,15 @@ while(idx<=secs)               %% Main simulation loop
  end
  di = di / norm(di)
 
+ % ------------ vel computation
  vel=5;                % Replace with your computation of running velocity, in Km/h
+ if (rows(position_history) > 1)
+  x_displacement = position_history(end, 1) - position_history(end - 1, 1)
+  y_displacement = position_history(end, 2) - position_history(end - 1, 2)
+  z_displacement = position_history(end, 3) - position_history(end - 1, 3)
+  xyz_displacement = sqrt((x_displacement * x_displacement) + (y_displacement * y_displacement) + (z_displacement * z_displacement))
+  vel = xyz_displacement * 3.6 % since this displacement takes over 1s it's also velocity in m/s
+ end
 
  if (deb==1)
      figure(5);clf;plot(HRS);
