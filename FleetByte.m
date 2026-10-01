@@ -199,6 +199,8 @@ while(idx<=secs)               %% Main simulation loop
  %
  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+ %%% SOLUTION:   
+ 
  % Discretize MPS signal
  MPS = max(MPS, 0);
 
@@ -268,8 +270,7 @@ while(idx<=secs)               %% Main simulation loop
      drawnow;
      pause;
  end;
- 
- %%% SOLUTION:   
+
  
  %%%%%%%%%%%%%%%%%%  DO NOT CHANGE ANY CODE BELOW THIS LINE %%%%%%%%%%%%%%%%%%%%%
  % Let's use the simulation script to plot your estimates against the real values
