@@ -3,7 +3,7 @@
 % UTSC - Fall 2021
 %
 % Starter code (c) F. Estrada, August 2021
-% 
+%
 % Sensors and Signal Processing
 %
 %  You may have heard there are all kinds of plans to
@@ -44,7 +44,7 @@
 %   secs - number of (virtual) seconds to run the simulation for.
 %          Each call to Sim1() returns sensor readings for 1 sec,
 %          so this is in effect the numbe or rounds of simulation
-%          you want. 
+%          you want.
 %
 %   map - Select map (1 or 2), each is a crop from the global Mars
 %         elevation map from NASA - image in public domain. Note
@@ -58,7 +58,7 @@
 %          about how to get a heartrate out of it), and print out
 %          the sensor readings returned by Sim1(). You can add your
 %          own debug/testing output as well.
-%               
+%
 % - delta_t - maximum change in rover direction per unit of time, in radians
 %
 % Return values:
@@ -72,9 +72,9 @@
 %
 %  MPS - Martian Positioning System - reports 3D position anywhere on Mars
 %        to within a small displacement from actual location. Like its
-%        Earthly cousin, MPS has an expected location error. For 
+%        Earthly cousin, MPS has an expected location error. For
 %        a typical wearable device, on Earth, location error is
-%        within 5m of the actual location 
+%        within 5m of the actual location
 %        (https://www.gps.gov/systems/gps/performance/accuracy/)
 %        Our FleetByte has a similar receiver, but due to the lower
 %        density of Martian atmosphere, distortion due to armospheric
@@ -85,10 +85,10 @@
 %          are more difficult since buildings reflect GPS signals leading
 %          to increased error in position estimates.
 %
-%  Heart Rate Sensor (HRS) - This one is interesting. Modern wearable 
-%        HR monitors typically use light reflection from 
+%  Heart Rate Sensor (HRS) - This one is interesting. Modern wearable
+%        HR monitors typically use light reflection from
 %        arterial blood to determine the heart rate - the
-%        pulsing blood creates a periodic waveform in the 
+%        pulsing blood creates a periodic waveform in the
 %        reflected light. Issues with noise, low signal-to-noise
 %        ratio, and effects due to skin colour, thickness, and
 %        even ambient light combine to produce a fairly noisy
@@ -98,15 +98,15 @@
 %        If you're very curious, this manufacturer has a
 %        very thorough description of how their sensor works and
 %        the different technical issues involved in computing a
-%        heartrate from it ** YOU ARE NOT EXPECTED TO READ 
-%        THROUGH AND IMPLEMENT THIS, IT'S THERE IN CASE YOU 
+%        heartrate from it ** YOU ARE NOT EXPECTED TO READ
+%        THROUGH AND IMPLEMENT THIS, IT'S THERE IN CASE YOU
 %        WANT TO LEARN MORE **
 %        https://www.maximintegrated.com/en/products/interface/sensor-interface/MAX30102.html#product-details
 %
 %  Rate gyro (RG) - A fairly standard rate gyro, returns the measured
 %              change in angle for the direction of motion (i.e.
 %              tells you by how many radians this direction changed
-%              in between readings). 
+%              in between readings).
 %
 %              Somewhat noisy, but this assuming the user doesn't
 %              move their arms in weird directions while running
@@ -137,13 +137,16 @@ k_pos = 0.6;                % 0 <= k_pos <= 1, 0 biases prediction, ignoring MPS
                             % 1 biases MPS sensor, ignoring prediction.
 k_vel = 0.15;               % 0 <= k_vel <= 1, velocity update rate
 
+position_history = []
+direction_history = []
 %%%%%%%%%% ... AND THIS LINE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 idx=1;
-while(idx<=secs)               %% Main simulation loop
 
+while(idx<=secs)               %% Main simulation loop
  [MPS,HRS,Rg]=Sim1(map);       % Simulates 1-second of running and returns the sensor readings
-                         
+
+
  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  % TO DO:
  %  Sim1() returns noisy readings for global position (x,y,z), a heart-rate
@@ -157,7 +160,7 @@ while(idx<=secs)               %% Main simulation loop
  %
  %    - Compute the current hear-rate (this will require some thought, make
  %      sure to look closely at the plot of HRS, and think of ways in which
- %      you can determine the heart rate from this). Remember the data 
+ %      you can determine the heart rate from this). Remember the data
  %      in the plot corresponds to the last 10 seconds. And, just FYI, it's
  %      based on what the actual data returned from a typical wrist-worn
  %      heart rate monitor returns. So it's fairly realistic in terms of what
@@ -168,13 +171,13 @@ while(idx<=secs)               %% Main simulation loop
  %      running direction right?) - well, you don't, but you can figure it
  %      out :) - that's part of the exercise.
  %      * REFERENCE: - given a direction vector, if you want to apply a
- %         rotation by a particular angle to this vector, you simply 
+ %         rotation by a particular angle to this vector, you simply
  %         multiply the vector by the corresponding rotation matrix:
  %
  %            d1=R*d;
  %
  %         Where d is the input direction vector (a unit-length, column
- %         vector with 2 components). R is the rotation matrix for 
+ %         vector with 2 components). R is the rotation matrix for
  %         the amount of rotation you want:
  %
  %           R=[cos(theta) -sin(theta)
@@ -183,7 +186,7 @@ while(idx<=secs)               %% Main simulation loop
  %         'theta' is in radians. Finally, d1 is the resulting direction vector.
  %
  %    - Estimate the running speed in Km/h - This is *not* returned by any
- %      of the sensor readings, so you have to estimate it (carefully). 
+ %      of the sensor readings, so you have to estimate it (carefully).
  %
  %    Goal: To get the estimates as close as possible to the real value for
  %          the relevant quantities above. The last part of the script calls
@@ -192,8 +195,8 @@ while(idx<=secs)               %% Main simulation loop
  %          RMS of each measurement to be as close to 0 as possible.
  %          RMS is a common measure of error, and corresponds to the square
  %          root of the average squared error between a measurement and the
- %          corresponding estimate, taken over time. 
- %    
+ %          corresponding estimate, taken over time.
+ %
  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  % Discretize MPS signal
@@ -218,8 +221,43 @@ while(idx<=secs)               %% Main simulation loop
  vel_ms = norm(est_vel);
  vel = vel_ms * 0.001 * 3600;
  
- hr=82;                  % Replace with your computation of heart rate
- di=[0 1];               % Replace with your computation for running direction, this should be a 2D unit vector
+ position_history(end+1, :) = xyz;
+
+ % ---------------- hr computation
+ Y = fft(HRS);
+ [freq_amplitude, max_freq] = max(abs(Y));
+ % 1200 samples, 120 s
+ % thus, each index is 120/1200 = 0.1 Hz
+ % thus, if index is k, frequency is 0.1 * k
+ % thus, if index is k, hr is 6 * k => hr is k, index is k/6 => 30 <= hr <= 186 means 5 <= index <= 31
+  [freq_amplitude, max_freq] = max(abs(Y(5:31)));
+ max_freq = max_freq + 4;
+ max_freq = (max_freq - 1) * 0.1;
+
+ % to convert cycles/second to cycles / minute
+ hr = max_freq * 60;
+
+ % ---------------- di computation
+ di = [0 1]
+ rotation_matrix = [cos(Rg) -sin(Rg); sin(Rg)  cos(Rg)];
+
+ % ---- averaging with Rg + direction
+ if(rows(direction_history) >= 1)
+  x_displacement = position_history(end, 1) - position_history(end - 1, 1)
+  y_displacement = position_history(end, 2) - position_history(end - 1, 2)
+  old_di = [x_displacement y_displacement]
+  di_from_position_history = (rotation_matrix * old_di')'
+  di_from_direction_history = (rotation_matrix * direction_history(end, :)')';
+  di = di_from_position_history + di_from_direction_history
+  direction_history(end + 1, :) = di;
+ elseif(rows(position_history) > 1)
+  x_displacement = position_history(end, 1) - position_history(end - 1, 1)
+  y_displacement = position_history(end, 2) - position_history(end - 1, 2)
+  old_di = [x_displacement y_displacement]
+  di = (rotation_matrix * old_di')'
+  direction_history(end + 1, :) = di;
+ end
+ di = di / norm(di)
 
  if (deb==1)
      figure(5);clf;plot(HRS);
@@ -238,7 +276,7 @@ while(idx<=secs)               %% Main simulation loop
  % of the quantities of interest and obtain error measures - notice we ignore the
  % returned XYZ, HRSt, and Rg values since they're the same we got above.
  [t1,t2,t3,xyzRMS,velRMS,angRMS,hrRMS]=Sim1(map, xyz,hr,di,vel);
- idx=idx+1; 
+ idx=idx+1;
 end;
 
 %%%%% Interesting links you may want to browse - I used these while designing this exercise.
