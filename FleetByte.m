@@ -130,6 +130,13 @@ pkg load image;             %%% Comment this out for MATLAB
 close all;
 %%%%%%%%%% YOU CAN ADD ANY VARIABLES YOU MAY NEED BETWEEN THIS LINE... %%%%%%%%%%%%%%%%%
 
+% POSITION AND VELOCITY VARIABLES FOR CALCULATIONS
+est_pos = [];               % Estimated position with correction
+est_vel = [0, 0, 0];        % Estimated (x, y, z) velocity with correction
+k_pos = 0.6;                % 0 <= k_pos <= 1, 0 biases prediction, ignoring MPS.
+                            % 1 biases MPS sensor, ignoring prediction.
+k_vel = 0.15;               % 0 <= k_vel <= 1, velocity update rate
+
 %%%%%%%%%% ... AND THIS LINE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 idx=1;
@@ -189,11 +196,31 @@ while(idx<=secs)               %% Main simulation loop
  %    
  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
- xyz=[128 128 .5];       % Replace with your computation of position, the map is 512x512 pixels in size
+ % Discretize MPS signal
+ MPS = max(MPS, 0);
+
+ if (idx == 1)
+     est_pos = MPS;
+     est_vel = [0, 0, 0];
+ else
+     % Predict current pos based on last known pos and velocity
+     pred_pos = est_pos + est_vel;
+     pred_vel = est_vel;
+     diff = MPS - pred_pos;
+
+     % Denoise estimated pos/vel using predicted position
+     est_pos = pred_pos + k_pos * diff;
+     est_vel = pred_vel + k_vel * diff;
+ end
+
+ xyz = max(est_pos, 0);     % Add lower bound of 0 to xyz coords 
+
+ vel_ms = norm(est_vel);
+ vel = vel_ms * 0.001 * 3600;
+ 
  hr=82;                  % Replace with your computation of heart rate
  di=[0 1];               % Replace with your computation for running direction, this should be a 2D unit vector
- vel=5;                  % Replace with your computation of running velocity, in Km/h
- 
+
  if (deb==1)
      figure(5);clf;plot(HRS);
      fprintf(2,'****** For this frame: *******\n');
@@ -205,7 +232,7 @@ while(idx<=secs)               %% Main simulation loop
  end;
  
  %%% SOLUTION:   
-  
+ 
  %%%%%%%%%%%%%%%%%%  DO NOT CHANGE ANY CODE BELOW THIS LINE %%%%%%%%%%%%%%%%%%%%%
  % Let's use the simulation script to plot your estimates against the real values
  % of the quantities of interest and obtain error measures - notice we ignore the
