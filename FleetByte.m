@@ -130,6 +130,13 @@ pkg load image;             %%% Comment this out for MATLAB
 close all;
 %%%%%%%%%% YOU CAN ADD ANY VARIABLES YOU MAY NEED BETWEEN THIS LINE... %%%%%%%%%%%%%%%%%
 
+% POSITION AND VELOCITY VARIABLES FOR CALCULATIONS
+est_pos = [];               % Estimated position with correction
+est_vel = [0, 0, 0];        % Estimated (x, y, z) velocity with correction
+k_pos = 0.6;                % 0 <= k_pos <= 1, 0 biases prediction, ignoring MPS.
+                            % 1 biases MPS sensor, ignoring prediction.
+k_vel = 0.15;               % 0 <= k_vel <= 1, velocity update rate
+
 position_history = []
 direction_history = []
 %%%%%%%%%% ... AND THIS LINE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -192,8 +199,29 @@ while(idx<=secs)               %% Main simulation loop
  %
  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
- position_history(end+1, :) = MPS;
- xyz=[MPS(1) MPS(2) MPS(3)+5] % Replace with your computation of position, the map is 512x512 pixels in size
+ % Discretize MPS signal
+ MPS = max(MPS, 0);
+
+ if (idx == 1)
+     est_pos = MPS;
+     est_vel = [0, 0, 0];
+ else
+     % Predict current pos based on last known pos and velocity
+     pred_pos = est_pos + est_vel;
+     pred_vel = est_vel;
+     diff = MPS - pred_pos;
+
+     % Denoise estimated pos/vel using predicted position
+     est_pos = pred_pos + k_pos * diff;
+     est_vel = pred_vel + k_vel * diff;
+ end
+
+ xyz = max(est_pos, 0);     % Add lower bound of 0 to xyz coords 
+
+ vel_ms = norm(est_vel);
+ vel = vel_ms * 0.001 * 3600;
+ 
+ position_history(end+1, :) = xyz;
 
  % ---------------- hr computation
  Y = fft(HRS);
@@ -231,17 +259,6 @@ while(idx<=secs)               %% Main simulation loop
  end
  di = di / norm(di)
 
- % ------------ vel computation
-
- vel=5;                % Replace with your computation of running velocity, in Km/h
- if (rows(position_history) > 1)
-  x_displacement = position_history(end, 1) - position_history(end - 1, 1)
-  y_displacement = position_history(end, 2) - position_history(end - 1, 2)
-  z_displacement = position_history(end, 3) - position_history(end - 1, 3)
-  xyz_displacement = sqrt((x_displacement * x_displacement) + (y_displacement * y_displacement) + (z_displacement * z_displacement))
-  vel = xyz_displacement * 3.6 % since this displacement takes over 1s it's also velocity in m/s
- end
-
  if (deb==1)
      figure(5);clf;plot(HRS);
      fprintf(2,'****** For this frame: *******\n');
@@ -251,9 +268,9 @@ while(idx<=secs)               %% Main simulation loop
      drawnow;
      pause;
  end;
-
- %%% SOLUTION:
-
+ 
+ %%% SOLUTION:   
+ 
  %%%%%%%%%%%%%%%%%%  DO NOT CHANGE ANY CODE BELOW THIS LINE %%%%%%%%%%%%%%%%%%%%%
  % Let's use the simulation script to plot your estimates against the real values
  % of the quantities of interest and obtain error measures - notice we ignore the
